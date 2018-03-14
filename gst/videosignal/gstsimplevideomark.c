@@ -50,6 +50,31 @@
 #include <gst/video/gstvideofilter.h>
 #include "gstsimplevideomark.h"
 
+#ifdef G_OS_WIN32
+#include <Windows.h>
+#endif
+#include <time.h>
+guint64 get_current_milli_timestamp()
+{
+  time_t ltime, utcTime;
+  struct tm* timeinfo;
+#ifdef G_OS_WIN32
+  SYSTEMTIME t;
+#endif
+
+  time(&ltime);               /* get local time */
+  timeinfo = gmtime(&ltime);  /* Convert to UTC */
+  utcTime = mktime(timeinfo); /* Store as unix timestamp */
+
+#ifdef G_OS_WIN32
+  GetSystemTime(&t);
+  return (guint64)utcTime * 1000 + t.wMilliseconds;
+#else
+  return (guint64)utcTime * 1000 + 0;
+#endif
+}
+guint16 frame_id = 0;
+
 GST_DEBUG_CATEGORY_STATIC (gst_video_mark_debug_category);
 #define GST_CAT_DEFAULT gst_video_mark_debug_category
 
@@ -426,6 +451,8 @@ gst_video_mark_yuv (GstSimpleVideoMark * simplevideomark, GstVideoFrame * frame)
       G_GUINT64_CONSTANT (1) << (simplevideomark->pattern_data_count - 1);
 
   /* get the data of the pattern */
+  guint64 pattern_data = frame_id++;
+  simplevideomark->pattern_data = (pattern_data << 48) + get_current_milli_timestamp(); // store frame_id(16bit) and timestamp(48bit)
   for (i = 0; i < simplevideomark->pattern_data_count; i++) {
     gint draw_pw;
     if (simplevideomark->pattern_data & pattern_shift)

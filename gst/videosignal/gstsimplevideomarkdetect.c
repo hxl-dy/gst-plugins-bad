@@ -69,6 +69,30 @@
 #include <gst/video/gstvideofilter.h>
 #include "gstsimplevideomarkdetect.h"
 
+#ifdef G_OS_WIN32
+#include <Windows.h>
+#endif
+#include <time.h>
+guint64 _getCurrentMilliTimestamp()
+{
+  time_t ltime, utcTime;
+  struct tm* timeinfo;
+#ifdef G_OS_WIN32
+  SYSTEMTIME t;
+#endif
+
+  time(&ltime);               /* get local time */
+  timeinfo = gmtime(&ltime);  /* Convert to UTC */
+  utcTime = mktime(timeinfo); /* Store as unix timestamp */
+
+#ifdef G_OS_WIN32
+  GetSystemTime(&t);
+  return (guint64)utcTime * 1000 + t.wMilliseconds;
+#else
+  return (guint64)utcTime * 1000 + 0;
+#endif
+}
+
 GST_DEBUG_CATEGORY_STATIC (gst_video_detect_debug_category);
 #define GST_CAT_DEFAULT gst_video_detect_debug_category
 
@@ -367,7 +391,8 @@ gst_video_detect_post_message (GstSimpleVideoMarkDetect * simplevideomarkdetect,
   trans = GST_BASE_TRANSFORM_CAST (simplevideomarkdetect);
 
   /* get timestamps */
-  timestamp = GST_BUFFER_TIMESTAMP (buffer);
+  // timestamp = GST_BUFFER_TIMESTAMP (buffer);
+  timestamp = _getCurrentMilliTimestamp();
   duration = GST_BUFFER_DURATION (buffer);
   running_time = gst_segment_to_running_time (&trans->segment, GST_FORMAT_TIME,
       timestamp);
